@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Profile</title>
+    <meta name="description" content="">
+    <meta name="keywords" content="">
+
+
+    <link href="assets/img/favicon.ico" rel="icon">
+    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+        rel="stylesheet">
+
+
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+    <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+    <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+    <link href="assets/css/main.css" rel="stylesheet">
+
+</head>
+
+<body class="profile__page">
+    <div id="header-container"></div>
+    <div id="header__background"></div>
+    <script src="assets/js/header.js"></script>
+    <div class="cols__container">
+        <div class="left__col">
+            <div class="user__info">
+                <h2 id="user__name"></h2>
+                <p id="user__phone"></p>
+                <p id="user__email"></p>
+            </div>
+            <script>
+                document.addEventListener('DOMContentLoaded', fetchUserData())
+                async function fetchUserData() {
+                    try {
+                        const url = 'http://localhost:8080/api/v1/users/me';
+                        const authToken = localStorage.getItem('authToken');
+
+                        if (!authToken) {
+                            throw new Error('Токен авторизации не найден.');
+                        }
+
+                        const response = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`,
+                            },
+                        });
+
+                        if (response.status === 403) {
+                            console.warn('Доступ запрещён. Перенаправление на страницу входа...');
+                            window.location.href = 'login.html';
+                            return;
+                        }
+
+                        if (!response.ok) {
+                            throw new Error(`Ошибка: ${response.status} ${response.statusText}`);
+                        }
+
+                        const user = await response.json();
+                        console.log('Данные пользователя:', user);
+
+                        const userName = document.querySelector('#user__name')
+                        const userPhone = document.querySelector('#user__phone')
+                        const userEmail = document.querySelector('#user__email')
+
+                        userName.textContent = user.name + " " + user.surname;
+                        userPhone.textContent = user.phoneNumber;
+                        userEmail.textContent = user.email
+
+                        const user__role = user.role;
+                        const user__functions = document.querySelector(".user__functions")
+                        const list = document.querySelector(".photos")
+
+                        if (user__role === 'ADMIN') {
+                            const allUsersButton = '<li><a href="" id="users_all" class="tab-link">All users</a></li>'
+                            const allFlightsButton = '<li><a href="" id="flights_all" class="tab-link">All flights</a></li>'
+                            user__functions.insertAdjacentHTML('beforeend', allUsersButton)
+                            user__functions.insertAdjacentHTML('beforeend', allFlightsButton)
+                            const allUsers = document.getElementById('users_all')
+                            const allFlights = document.getElementById('flights_all')
+                            const history = document.getElementById('history')
+                            allUsers.addEventListener('click', (event) => {
+                                event.preventDefault();
+                                list.innerHTML = ''
+                                fetchAllUsers();
+                            })
+                            allFlights.addEventListener('click', (event) => {
+                                event.preventDefault();
+                                list.innerHTML = ''
+                                fetchAllFlights();
+                            })
+                            history.addEventListener('click', (event) => {
+                                event.preventDefault();
+                                list.innerHTML = ''
+                                fetchHistory();
+                            })
+                        }
+
+
+
+                    } catch (error) {
+                        console.error('Ошибка при получении данных пользователя:', error.message);
+
+                        console.warn('Перенаправление на login.html из catch...');
+
+                        setTimeout(() => {
+                            window.location.href = 'login.html';
+                        }, 200);
+                    }
+
+                    async function fetchAllUsers() {
+                        try {
+                            const response = await fetch('http://localhost:8080/api/v1/users/');
+
+                            if (!response.ok) {
+                                throw new Error('Ошибка при получении данных');
+                            }
+
+                            const users = await response.json();
+
+                            const container = document.querySelector('.photos');
+                            container.innerHTML = ''; 
+
+                            const filterSelect = document.createElement('select');
+                            filterSelect.style.marginBottom = '10px';
+                            filterSelect.style.display = 'block';
+
+                            const filterOptions = ['Все', 'Менеджеры', 'Работодатели'];
+                            filterOptions.forEach(filter => {
+                                const option = document.createElement('option');
+                                option.value = filter;
+                                option.textContent = filter;
+                                filterSelect.appendChild(option);
+                            });
+
+                            container.appendChild(filterSelect);
+
+                            const userList = document.createElement('ul');
+                            userList.className = 'photos';
+                            container.appendChild(userList);
+
+                            const paginationContainer = document.createElement('div');
+                            paginationContainer.className = 'pagination';
+                            paginationContainer.style.marginTop = '20px';
+                            paginationContainer.style.display = 'flex';
+                            paginationContainer.style.justifyContent = 'center';
+                            container.appendChild(paginationContainer);
+
+                            let currentPage = 1;
+                            const itemsPerPage = 10;
+
+                            function updateUserList(roleFilter, page = 1) {
+                                userList.innerHTML = ''; 
+                                paginationContainer.innerHTML = '';
+
+                                const filteredUsers = users.filter(user => {
+                                    if (roleFilter === 'Все') return true;
+                                    if (roleFilter === 'Менеджеры') return user.role === 'MANAGER';
+                                    if (roleFilter === 'Работодатели') return user.role === 'EMPLOYER';
+                                    return false;
+                                });
+
+                                const startIndex = (page - 1) * itemsPerPage;
+                                const endIndex = startIndex + itemsPerPage;
+                                const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+                                paginatedUsers.forEach(user => {
+                                    const listItem = document.createElement('li');
+                                    listItem.setAttribute('data-user-id', user.id);
+
+                                    const userLink = document.createElement('a');
+                                    userLink.href = `#/users/${user.id}`;
+                                    userLink.textContent = `${user.name} (${user.email})`;
+
+                                    userLink.addEventListener('click', function (event) {
+                                        event.preventDefault();
+                                        viewUserProfile(user.id);
+                                    });
+
+                                    const roleSelect = document.createElement('select');
+                                    roleSelect.style.marginLeft = '10px';
+
+                                    const roles = ['Пользователь', 'Менеджер', 'Работодатель'];
+                                    roles.forEach(role => {
+                                        const option = document.createElement('option');
+                                        option.value = role;
+                                        option.textContent = role;
+
+                                        if (
+                                            (role === 'Пользователь' && user.role === 'USER') ||
+                                            (role === 'Менеджер' && user.role === 'MANAGER') ||
+                                            (role === 'Работодатель' && user.role === 'EMPLOYER')
+                                        ) {
+                                            option.selected = true;
+                                        }
+
+                                        roleSelect.appendChild(option);
+                                    });
+
+                                    roleSelect.addEventListener('change', async function () {
+                                        const newRole = roleSelect.value;
+                                        await changeUserRole(user.id, newRole);
+                                    });
+
+                                    if (user.role !== 'ADMIN') {
+                                        const deleteButton = document.createElement('button');
+                                        deleteButton.textContent = 'Delete';
+                                        deleteButton.style = 'background: red; border-radius: 5px; border: none; margin-left: 10px;';
+                                        deleteButton.addEventListener('click', async function () {
+                                            if (user.role === 'EMPLOYER') {
+                                                await fetch(`http://localhost:8080/api/v1/employer/delete?id=${user.id}`, {
+                                                    method: 'DELETE',
+                                                    headers: {
+                                                        Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+                                                    }
+                                                });
+                                            }
+                                            await deleteUser(user.id);
+                                        });
+
+                                        listItem.appendChild(userLink);
+                                        listItem.appendChild(roleSelect);
+                                        listItem.appendChild(deleteButton);
+                                        userList.appendChild(listItem);
+                                    }
+                                });
+
+                                const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+                                for (let i = 1; i <= totalPages; i++) {
+                                    const pageButton = document.createElement('button');
+                                    pageButton.textContent = i;
+                                    pageButton.style.margin = '0 5px';
+                                    pageButton.style.padding = '5px 10px';
+                                    pageButton.style.border = '1px solid #ddd';
+                                    pageButton.style.cursor = 'pointer';
+                                    if (i === page) {
+                                        pageButton.style.backgroundColor = '#007bff';
+                                        pageButton.style.color = '#fff';
+                                    }
+
+                                    pageButton.addEventListener('click', () => {
+                                        currentPage = i;
+                                        updateUserList(roleFilter, currentPage);
+                                    });
+
+                                    paginationContainer.appendChild(pageButton);
+                                }
+                            }
+
+                            filterSelect.addEventListener('change', function () {
+                                updateUserList(filterSelect.value, 1); 
+                            });
+
+                            updateUserList('Все', currentPage);
+                        } catch (error) {
+                            console.error('Ошибка:', error);
+                        }
+                    }
+
+
+
+                    async function fetchAllFlights() {
+                        try {
+                            const response = await fetch('http://localhost:8080/api/v1/flights/all', {
+                                method: "GET",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+                                },
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Ошибка при получении данных');
+                            }
+
+                            const flights = await response.json();
+
+                            const container = document.querySelector('.photos');
+                            container.innerHTML = ''; // Очистим контейнер
+
+                            // Добавляем выпадающий список фильтров
+                            const filterSelect = document.createElement('select');
+                            filterSelect.style.marginBottom = '10px';
+                            filterSelect.style.display = 'block';
+
+                            const filterOptions = ['All', 'Wait', 'In Progress', 'Finished', 'Cancel'];
+                            filterOptions.forEach(filter => {
+                                const option = document.createElement('option');
+                                option.value = filter;
+                                option.textContent = filter;
+                                filterSelect.appendChild(option);
+                            });
+
+                            container.appendChild(filterSelect);
+
+                            const flightList = document.createElement('ul');
+                            flightList.className = 'photos';
+                            container.appendChild(flightList);
+
+                            // Функция для обновления списка рейсов
+                            function updateFlightList(statusFilter) {
+                                flightList.innerHTML = ''; // Очищаем список
+
+                                flights
+                                    .filter(flight => {
+                                        if (statusFilter === 'All') return true;
+                                        const statusMap = {
+                                            'Wait': 'WAIT',
+                                            'In Progress': 'IN_PROGRESS',
+                                            'Finished': 'FINISHED',
+                                            'Cancel': 'CANCEL',
+                                        };
+                                        return flight.tripStatus === statusMap[statusFilter];
+                                    })
+                                    .forEach(flight => {
+                                        const listItem = document.createElement('li');
+                                        listItem.setAttribute('data-user-id', flight.id);
+
+                                        const userLink = document.createElement('a');
+                                        userLink.textContent = `${flight.employerId.userId.name}, id: ${flight.id}, status: ${flight.tripStatus}, Filled: ${flight.freeVolume}, Space: ${flight.maxVolume}`;
+
+                                        const statusSelect = document.createElement('select');
+                                        statusSelect.style.marginLeft = '10px';
+
+                                        const statuses = ['Wait', 'In Progress', 'Finished', 'Cancel'];
+                                        statuses.forEach(status => {
+                                            const option = document.createElement('option');
+                                            option.value = status;
+                                            option.textContent = status;
+
+                                            if (
+                                                (status === 'Wait' && flight.tripStatus === 'WAIT') ||
+                                                (status === 'In Progress' && flight.tripStatus === 'IN_PROGRESS') ||
+                                                (status === 'Finished' && flight.tripStatus === 'FINISHED') ||
+                                                (status === 'Cancel' && flight.tripStatus === 'CANCEL')
+                                            ) {
+                                                option.selected = true;
+                                            }
+
+                                            statusSelect.appendChild(option);
+                                        });
+
+                                        statusSelect.addEventListener('change', async function () {
+                                            const statusMap = {
+                                                'Wait': 'WAIT',
+                                                'In Progress': 'IN_PROGRESS',
+                                                'Finished': 'FINISHED',
+                                                'Cancel': 'CANCEL'
+                                            };
+
+                                            const newStatus = statusMap[statusSelect.value];
+                                            console.log(newStatus);
+                                            await changeFlightStatus(flight.id, newStatus);
+                                        });
+
+                                        const deleteButton = document.createElement('button');
+                                        deleteButton.textContent = 'Delete';
+                                        deleteButton.style = 'background: red; border-radius: 5px; border: none; margin-left: 10px;';
+                                        deleteButton.addEventListener('click', async function () {
+                                            await deleteFlight(flight.id); // Реализуйте эту функцию для удаления
+                                            fetchAllFlights(); // Перезагрузим список после удаления
+                                        });
+
+                                        listItem.appendChild(userLink);
+                                        listItem.appendChild(statusSelect);
+                                        listItem.appendChild(deleteButton);
+                                        flightList.appendChild(listItem);
+                                    });
+                            }
+
+                            filterSelect.addEventListener('change', function () {
+                                updateFlightList(filterSelect.value);
+                            });
+
+                            updateFlightList('All');
+                        } catch (error) {
+                            console.error('Ошибка:', error);
+                        }
+                    }
+
+                    async function fetchHistory() {
+                        try {
+                            const response = await fetch('http://localhost:8080/api/v1/users/myOrders', {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Ошибка при получении заказов');
+                            }
+
+                            const orders = await response.json();
+
+                            const ordersContainer = document.querySelector('.photos');
+                            ordersContainer.innerHTML = ''; // Очищаем контейнер
+
+                            if (orders.length === 0) {
+                                ordersContainer.textContent = 'У вас нет заказов.';
+                                return;
+                            }
+
+                            orders.forEach(order => {
+                                const accordionItem = document.createElement('div');
+                                accordionItem.className = 'accordion-item';
+
+                                // Кнопка аккордеона
+                                const accordionHeader = document.createElement('button');
+                                accordionHeader.className = 'accordion-header';
+                                accordionHeader.textContent = `Order: Length = ${order.length}, Width = ${order.width}, Height = ${order.height}`;
+                                accordionHeader.style = 'width: 100%; text-align: left; padding: 10px; background-color: #f1f1f1; border: none; cursor: pointer;';
+                                accordionHeader.addEventListener('click', async () => {
+                                    const accordionContent = accordionItem.querySelector('.accordion-content');
+                                    if (accordionContent.innerHTML.trim() === '') {
+                                        const productData = await fetchProductData(order.id);
+                                        accordionContent.innerHTML = renderProductData(productData);
+                                    }
+                                    accordionContent.style.display = accordionContent.style.display === 'block' ? 'none' : 'block';
+                                });
+
+                                // Контейнер для содержимого аккордеона
+                                const accordionContent = document.createElement('div');
+                                accordionContent.className = 'accordion-content';
+                                accordionContent.style = 'display: none; padding: 10px; border: 1px solid #ddd;';
+
+                                accordionItem.appendChild(accordionHeader);
+                                accordionItem.appendChild(accordionContent);
+
+                                ordersContainer.appendChild(accordionItem);
+                            });
+                        } catch (error) {
+                            console.error('Ошибка при загрузке заказов:', error.message);
+                            const ordersContainer = document.querySelector('#ordersContainer');
+                            ordersContainer.textContent = 'Произошла ошибка при загрузке заказов. Попробуйте позже.';
+                        }
+                    }
+
+                    async function fetchProductData(productId) {
+                        try {
+                            const response = await fetch(`http://localhost:8080/api/v1/product/${productId}`, {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Ошибка при получении данных продукта');
+                            }
+
+                            return await response.json();
+                        } catch (error) {
+                            console.error('Ошибка при получении данных продукта:', error.message);
+                            return null;
+                        }
+                    }
+
+                    function renderProductData(product) {
+                        if (!product) {
+                            return '<p>Ошибка при загрузке данных продукта.</p>';
+                        }
+
+                        const {
+                            id,
+                            length,
+                            width,
+                            height,
+                            volume,
+                            startTrip,
+                            flights: {
+                                tripStatus,
+                                flightStatus,
+                                startTrip: flightStart,
+                                endTrip
+                            }
+                        } = product;
+
+                        const formattedStartTrip = startTrip ? new Date(startTrip).toLocaleString() : 'N/A';
+                        const formattedFlightStart = flightStart ? new Date(flightStart).toLocaleString() : 'N/A';
+                        const formattedEndTrip = endTrip ? new Date(endTrip).toLocaleString() : 'N/A';
+
+                        return `
+        <p>ID: ${id}</p>
+        <p>Length: ${length}</p>
+        <p>Width: ${width}</p>
+        <p>Height: ${height}</p>
+        <p>Volume: ${volume}</p>
+        <p>Start Trip: ${formattedStartTrip}</p>
+        <p>Flight Trip Status: ${tripStatus}</p>
+        <p>Flight Status: ${flightStatus}</p>
+        <p>Flight Start: ${formattedFlightStart}</p>
+        <p>End Trip: ${formattedEndTrip}</p>
+    `;
+                    }
+
+
+
+
+
+                    async function changeFlightStatus(flightID, newStatus) {
+                        try {
+                            body = {
+                                flightsID: flightID,
+                                tripStatus: newStatus
+                            }
+
+                            const response = await fetch("http://localhost:8080/api/v1/flights/trip-status-update", {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+                                },
+                                body: JSON.stringify(body),
+                            });
+
+                            if (!response.ok) {
+                                throw new Error("Ошибка при обновлении роли пользователя");
+                            }
+
+                            console.log(`Cтатус поездки с ID ${flightID} успешно изменена на ${newStatus}`);
+                        } catch (error) {
+                            console.error("Ошибка:", error);
+                        }
+                    };
+
+                    async function deleteUser(userId) {
+                        try {
+                            const response = await fetch(`http://localhost:8080/api/v1/users/${userId}`, {
+                                method: 'DELETE',
+                            });
+
+                            if (response.ok) {
+                                console.log(`Пользователь с ID ${userId} успешно удален.`);
+
+                                const userItem = document.querySelector(`li[data-user-id="${userId}"]`);
+                                if (userItem) {
+                                    userItem.remove();
+                                } else {
+                                    console.error(`Элемент с data-user-id="${userId}" не найден.`);
+                                }
+                            } else {
+                                console.error(`Не удалось удалить пользователя с ID ${userId}.`);
+                            }
+                        } catch (error) {
+                            console.error('Ошибка:', error);
+                        }
+                    }
+
+                    async function viewUserProfile(userId) {
+                        try {
+                            const response = await fetch(`http://localhost:8080/api/v1/users/${userId}`);
+
+
+                            if (!response.ok) {
+                                throw new Error('Ошибка при получении данных');
+                            }
+
+                            const user = await response.json();
+
+                            console.log(user);
+
+                            const userProfile = document.querySelector('.user__info');
+                            userProfile.innerHTML = `
+            <h2 id="user__name">${user.name + " " + user.surname}</h2>
+                <p id="user__phone">${user.phoneNumber}</p>
+                <p id="user__email">${user.email}</p>
+        `;
+                        } catch (error) {
+                            console.error('Ошибка при получении данных о пользователе:', error);
+                        }
+                    }
+                    async function changeUserRole(userId, newRole) {
+                        try {
+                            let url;
+                            let method;
+                            let body;
+
+                            if (newRole === 'Менеджер') {
+                                url = `http://localhost:8080/api/v1/admin/manager/${userId}`;
+                                method = 'PUT';
+                                body = { role: newRole };
+                            } else if (newRole === 'Работодатель') {
+                                url = `http://localhost:8080/api/v1/employer/create?userId=${userId}`;
+                                method = 'POST';
+                                body = {};
+                            } else {
+                                url = `http://localhost:8080/api/v1/admin/user/${userId}`;
+                                method = 'PUT';
+                                body = { role: newRole };
+                            }
+
+                            const response = await fetch(url, {
+                                method: method,
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+                                },
+                                body: JSON.stringify(body),
+                            });
+
+                            if (!response.ok) {
+                                throw new Error("Ошибка при обновлении роли пользователя");
+                            }
+
+                            console.log(`Роль пользователя с ID ${userId} успешно изменена на ${newRole}`);
+                        } catch (error) {
+                            console.error("Ошибка:", error);
+                        }
+                    }
+                }
+            </script>
+
+            <ul class="about" style="display: flex; justify-content: center;">
+                <li><span>4,073</span>Orders</li>
+            </ul>
+
+            <div class="content">
+                <p>
+                    Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aliquam
+                    erat volutpat. Morbi imperdiet, mauris ac auctor dictum, nisl
+                    ligula egestas nulla.
+                </p>
+
+                <ul>
+                    <li><i class="fab fa-twitter"></i></li>
+                    <i class="fab fa-pinterest"></i>
+                    <i class="fab fa-facebook"></i>
+                    <i class="fab fa-dribbble"></i>
+                </ul>
+            </div>
+        </div>
+        <div class="right__col">
+            <nav>
+                <ul class="user__functions">
+                    <li><a href="" id="history" class="tab-link">History</a></li>
+
+
+                </ul>
+            </nav>
+
+            <div class="photos">
+
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/vendor/purecounter/purecounter_vanilla.js"></script>
+    <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+    <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+
+    <script src="assets/js/main.js"></script>
+</body>
+
+</html>

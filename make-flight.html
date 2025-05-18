@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Create Flight</title>
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+
+  <link href="assets/img/favicon.ico rel=" icon">
+
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+    rel="stylesheet">
+
+  <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+  <link href="assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+  <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+  <link href="assets/css/main.css" rel="stylesheet">
+
+</head>
+
+<body class="get-a-quote-page">
+
+  <div id="header-container"></div>
+  <script src="assets/js/header.js" defer></script>
+
+  <main class="main">
+
+    <div class="page-title dark-background" data-aos="fade"
+      style="background-image: url(assets/img/page-title-bg.jpg);">
+      <div class="container position-relative">
+        <h1>Create Flight</h1>
+        <nav class="breadcrumbs">
+          <ol>
+            <li><a href="index.html">Home</a></li>
+            <li class="current">Create Flight</li>
+          </ol>
+        </nav>
+      </div>
+    </div>
+
+    <section id="get-a-quote" class="get-a-quote section">
+
+      <div class="container">
+
+        <div class="row g-0" data-aos="fade-up" data-aos-delay="100">
+
+          <div class="col-lg-5 quote-bg" style="background-image: url(assets/img/quote-bg.jpg);"></div>
+
+          <div class="col-lg-7" data-aos="fade-up" data-aos-delay="200">
+
+            <form class="php-email-form" id="quoteForm">
+              <h3>Make Flight</h3>
+              <div class="row gy-4">
+                <div class="col-md-6">
+                  <select id="employerSelect" name="employerId" class="form-control" required>
+                    <option value="" disabled selected>Select an employer</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6">
+                  <input type="number" name="weight" class="form-control" placeholder="Flight weight" required>
+                </div>
+
+                <div class="col-md-6">
+                  <input type="number" name="height" class="form-control" placeholder="Flight height" required>
+                </div>
+
+                <div class="col-md-6">
+                  <input type="number" name="length" class="form-control" placeholder="Flight length" required>
+                </div>
+
+                <div class="response"></div>
+                <div class="col-12">
+                  <div class="loading">Loading</div>
+                  <div class="error-message"></div>
+                  <div class="sent-message">Your quote request has been sent successfully. Thank you!</div>
+                  <button type="submit">Get a quote</button>
+                </div>
+              </div>
+            </form>
+
+            <script>
+              document.addEventListener('DOMContentLoaded', () => {
+                const employerSelect = document.getElementById('employerSelect');
+
+                // Fetch employers and populate the select dropdown
+                fetch('http://localhost:8080/api/v1/users/')
+                  .then(response => response.json())
+                  .then(data => {
+                    const employers = data.filter(user => user.role === 'EMPLOYER');
+                    employers.forEach(employer => {
+                      const option = document.createElement('option');
+                      option.value = employer.id;
+                      option.textContent = employer.name + " " + employer.surname;
+                      employerSelect.appendChild(option);
+                    });
+                  })
+                  .catch(error => {
+                    console.error('Error fetching employers:', error);
+                    document.querySelector('.error-message').style.display = 'block';
+                    document.querySelector('.error-message').textContent = 'Failed to load employers. Please try again later.';
+                  });
+
+                // Handle form submission
+                document.getElementById('quoteForm').addEventListener('submit', event => {
+                  event.preventDefault();
+
+                  const employerId = employerSelect.value;
+                  const weight = parseFloat(event.target.weight.value);
+                  const height = parseFloat(event.target.height.value);
+                  const length = parseFloat(event.target.length.value);
+
+                  const errorMessage = document.querySelector('.error-message');
+                  const successMessage = document.querySelector('.sent-message');
+
+                  // Reset previous messages
+                  errorMessage.style.display = 'none';
+                  successMessage.style.display = 'none';
+
+                  // Validation
+                  if (!employerId) {
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = 'Please select an employer.';
+                    return;
+                  }
+
+                  if (isNaN(weight) || weight <= 0) {
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = 'Weight must be greater than 0.';
+                    return;
+                  }
+
+                  if (isNaN(height) || height <= 0) {
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = 'Height must be greater than 0.';
+                    return;
+                  }
+
+                  if (isNaN(length) || length <= 0) {
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = 'Length must be greater than 0.';
+                    return;
+                  }
+
+                  const requestBody = {
+                    employerId: parseInt(employerId, 10),
+                    width: weight,
+                    height: height,
+                    length: length
+                  };
+
+                  const authToken = localStorage.getItem('authToken');
+
+                  fetch('http://localhost:8080/api/v1/flights/create', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(requestBody)
+                  })
+                    .then(response => {
+                      if (!response.ok) {
+                        throw new Error('Failed to create flight');
+                      }
+                      return response.json();
+                    })
+                    .then(data => {
+                      successMessage.style.display = 'block';
+                      successMessage.textContent = 'Your flight has been successfully created.';
+                      errorMessage.style.display = 'none';
+                      console.log('Flight created:', data);
+                    })
+                    .catch(error => {
+                      console.error('Error creating flight:', error);
+                      errorMessage.style.display = 'block';
+                      errorMessage.textContent = 'Failed to create flight. Please try again.';
+                      successMessage.style.display = 'none';
+                    });
+                });
+              });
+
+            </script>
+
+
+          </div>
+
+        </div>
+
+    </section><!-- /Get A Quote Section -->
+
+  </main>
+
+  <footer id="footer" class="footer dark-background">
+
+    <div class="container footer-top">
+      <div class="row gy-4">
+        <div class="col-lg-5 col-md-12 footer-about">
+          <a href="index.html" class="logo d-flex align-items-center">
+            <span class="sitename">D&E Cargo</span>
+          </a>
+          <p>Cras fermentum odio eu feugiat lide par naso tierra. Justo eget nada terra videa magna derita
+            valies darta donna mare fermentum iaculis eu non diam phasellus.</p>
+          <div class="social-links d-flex mt-4">
+            <a href=""><i class="bi bi-twitter-x"></i></a>
+            <a href=""><i class="bi bi-facebook"></i></a>
+            <a href=""><i class="bi bi-instagram"></i></a>
+            <a href=""><i class="bi bi-linkedin"></i></a>
+          </div>
+        </div>
+
+        <div class="col-lg-2 col-6 footer-links">
+          <h4>Useful Links</h4>
+          <ul>
+            <li><a href="#">Home</a></li>
+            <li><a href="#">About us</a></li>
+            <li><a href="#">Services</a></li>
+            <li><a href="#">Terms of service</a></li>
+            <li><a href="#">Privacy policy</a></li>
+          </ul>
+        </div>
+
+        <div class="col-lg-2 col-6 footer-links">
+          <h4>Our Services</h4>
+          <ul>
+            <li><a href="#">Web Design</a></li>
+            <li><a href="#">Web Development</a></li>
+            <li><a href="#">Product Management</a></li>
+            <li><a href="#">Marketing</a></li>
+            <li><a href="#">Graphic Design</a></li>
+          </ul>
+        </div>
+
+        <div class="col-lg-3 col-md-12 footer-contact text-center text-md-start">
+          <h4>Contact Us</h4>
+          <p>Ankara 1/8</p>
+          <p>Bishkek</p>
+          <p>Kyrgyzstan</p>
+          <p class="mt-4"><strong>Phone:</strong> <span>+966 777 777 777</span></p>
+          <p><strong>Email:</strong> <span>info@example.com</span></p>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="container copyright text-center mt-4">
+      <p>© <span>Copyright</span> <strong class="px-1 sitename">D&E Cargo</strong> <span>All Rights Reserved</span>
+      </p>
+
+    </div>
+
+  </footer>
+
+  <!-- Scroll Top -->
+  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i
+      class="bi bi-arrow-up-short"></i></a>
+
+  <!-- Preloader -->
+  <div id="preloader"></div>
+
+  <!-- Vendor JS Files -->
+  <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/vendor/php-email-form/validate.js"></script>
+  <script src="assets/vendor/aos/aos.js"></script>
+  <script src="assets/vendor/purecounter/purecounter_vanilla.js"></script>
+  <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+  <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+
+  <!-- Main JS File -->
+  <script src="assets/js/main.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Home</title>
+    <meta name="description" content="">
+    <meta name="keywords" content="">
+
+
+    <link href="assets/img/favicon.ico" rel="icon">
+
+
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+        rel="stylesheet">
+
+
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+    <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+    <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+    <link href="assets/css/main.css" rel="stylesheet">
+
+</head>
+
+<body class="index-page">
+
+    <div id="header-container"></div>
+    <script src="assets/js/header.js" defer></script>
+
+    <main class="main">
+
+        <div class="login__body">
+            <div class="login__main">
+                <input type="checkbox" id="chk" aria-hidden="true">
+
+                <div class="signup">
+                    <form id="signupForm">
+                        <label class="login__label" aria-hidden="true">Sign up</label>
+                        <input class="login__input" type="text" name="name" placeholder="Name" required>
+                        <input class="login__input" type="text" name="surname" placeholder="Surname" required>
+                        <div class="nameError" style="display: block; color: red;"></div>
+                        <input class="login__input" type="email" name="email" placeholder="Email" required>
+                        <div class="emailError" style="display: block; color: red;"></div>
+                        <input class="login__input" type="text" name="phoneNumber" placeholder="Phone number" required>
+                        <div class="phoneError" style="display: block; color: red;"></div>
+                        <input class="login__input" type="password" name="password" placeholder="Password" required>
+                        <div class="passwordError" style="display: block; color: red;"></div>
+                        <button class="login__button" type="submit">Sign Up</button>
+                    </form>
+                </div>
+
+                <script>
+                    const form = document.getElementById('signupForm');
+                    const nameError = document.querySelector('.nameError')
+                    const emailError = document.querySelector('.emailError')
+                    const phoneError = document.querySelector('.phoneError')
+                    const passwordError = document.querySelector('.passwordError')
+                    const passwordRegex = /^(?=.*[!@#$%^&_*])(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{8,}$/;
+
+                    form.addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        nameError.textContent = '';
+                        emailError.textContent = '';
+                        phoneError.textContent = '';
+                        passwordError.textContent = '';
+
+                        const formData = new FormData(form);
+                        const data = {
+                            name: formData.get('name').trim(),
+                            surname: formData.get('surname').trim(),
+                            email: formData.get('email').trim(),
+                            phoneNumber: formData.get('phoneNumber').trim(),
+                            password: formData.get('password').trim()
+                        };
+
+                        if (data.name.length < 3) {
+                            nameError.textContent = 'Имя должно содержать не менее 3 символов (не включая пробелы).';
+                            return;
+                        }
+
+                        if (data.surname.length < 3) {
+                            nameError.textContent = 'Имя должно содержать не менее 3 символов (не включая пробелы).';
+                            return;
+                        }
+
+                        if (!data.phoneNumber.includes('+')) {
+                            phoneError.textContent = 'Номер телефона должен содержать знак "+".';
+                            return;
+                        }
+
+                        if (data.password.length < 8 || !passwordRegex.test(data.password)){
+                            passwordError.textContent = 'The password must contain at least 8 characters, including one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)'
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch('http://localhost:8080/api/v1/auth/signup', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(data),
+                            });
+
+                            if (response.ok) {
+                                const result = await response.json();
+                                alert('Регистрация успешна: ' + result.message);
+                            } else if (response.status === 409) {
+                                alert('Ошибка регистрации: email уже используется.');
+                            } else {
+                                const error = await response.json();
+                                alert('Ошибка регистрации: ' + error.message);
+                            }
+                        } catch (error) {
+                            console.error('Произошла ошибка:', error);
+                            alert('Не удалось отправить данные. Попробуйте позже.');
+                        }
+                    });
+
+                </script>
+
+
+                <div class="login">
+                    <form id="loginForm">
+                        <label class="login__label" for="chk" aria-hidden="true">Login</label>
+                        <input class="login__input" type="email" name="email" placeholder="Email" required>
+                        <input class="login__input" type="password" name="password" placeholder="Password" required>
+                        <button class="login__button" type="submit">Login</button>
+                    </form>
+                    <div id="error-message"></div>
+                </div>
+                <script>
+                    const loginForm = document.getElementById('loginForm');
+                    const errorMessage = document.getElementById('error-message');
+                    const successMessage = document.createElement('p');
+                    successMessage.style.color = 'green';
+                    successMessage.style.marginTop = '10px';
+                    loginForm.appendChild(successMessage);
+
+
+                    loginForm.addEventListener('submit', async (event) => {
+                        event.preventDefault();
+
+                        errorMessage.textContent = '';
+                        errorMessage.style.display = 'none';
+                        successMessage.textContent = '';
+
+                        const formData = new FormData(loginForm);
+                        const email = formData.get('email');
+                        const password = formData.get('password');
+
+                        if (!passwordRegex.test(password)) {
+                            errorMessage.textContent = 'The password must contain at least 8 characters, including one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)';
+                            errorMessage.style.display = 'flex';
+                            errorMessage.style.textAlign = 'center'
+                            return;
+                        }
+
+                        const data = {
+                            email,
+                            password,
+                        };
+
+                        try {
+                            const response = await fetch('http://localhost:8080/api/v1/auth/login', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(data),
+                            });
+
+
+
+                            if (response.ok) {
+                                const result = await response.json();
+
+                                localStorage.setItem('authToken', result.token);
+
+                                const loginLink = document.querySelector('#navmenu a[href="login.html"]');
+
+
+                                if (loginLink) {
+                                    loginLink.textContent = 'Profile';
+                                    loginLink.setAttribute('href', 'profile.html');
+                                }
+
+
+
+
+                                successMessage.textContent = 'Авторизация успешна! Перенаправление...';
+
+                                setTimeout(() => {
+                                    window.location.href = 'index.html';
+                                }, 2000);
+                            } else {
+                                const error = await response.json();
+                                errorMessage.textContent = 'Incorrect login or password';
+                                errorMessage.style.display = 'block';
+                            }
+                        } catch (error) {
+                            console.error('Произошла ошибка:', error);
+                            errorMessage.textContent = "Couldn't login, try again later";
+                            errorMessage.style.display = 'block';
+                        }
+                    });
+
+
+
+                </script>
+            </div>
+        </div>
+
+
+    </main>
+
+    <footer id="footer" class="footer dark-background">
+
+        <div class="container footer-top">
+            <div class="row gy-4">
+                <div class="col-lg-5 col-md-12 footer-about">
+                    <a href="index.html" class="logo d-flex align-items-center">
+                        <span class="sitename">D&E Cargo</span>
+                    </a>
+                    <p>Cras fermentum odio eu feugiat lide par naso tierra. Justo eget nada terra videa magna derita
+                        valies darta donna mare fermentum iaculis eu non diam phasellus.</p>
+                    <div class="social-links d-flex mt-4">
+                        <a href=""><i class="bi bi-twitter-x"></i></a>
+                        <a href=""><i class="bi bi-facebook"></i></a>
+                        <a href=""><i class="bi bi-instagram"></i></a>
+                        <a href=""><i class="bi bi-linkedin"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-lg-2 col-6 footer-links">
+                    <h4>Useful Links</h4>
+                    <ul>
+                        <li><a href="#">Home</a></li>
+                        <li><a href="#">About us</a></li>
+                        <li><a href="#">Services</a></li>
+                        <li><a href="#">Terms of service</a></li>
+                        <li><a href="#">Privacy policy</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-2 col-6 footer-links">
+                    <h4>Our Services</h4>
+                    <ul>
+                        <li><a href="#">Web Design</a></li>
+                        <li><a href="#">Web Development</a></li>
+                        <li><a href="#">Product Management</a></li>
+                        <li><a href="#">Marketing</a></li>
+                        <li><a href="#">Graphic Design</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-3 col-md-12 footer-contact text-center text-md-start">
+                    <h4>Contact Us</h4>
+                    <p>Ankara 1/8</p>
+                    <p>Bishkek</p>
+                    <p>Kyrgyzstan</p>
+                    <p class="mt-4"><strong>Phone:</strong> <span>+966 777 777 777</span></p>
+                    <p><strong>Email:</strong> <span>info@example.com</span></p>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="container copyright text-center mt-4">
+            <p>© <span>Copyright</span> <strong class="px-1 sitename">D&E Cargo</strong> <span>All Rights
+                    Reserved</span>
+            </p>
+
+        </div>
+
+    </footer>
+
+    <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i
+            class="bi bi-arrow-up-short"></i></a>
+
+    <div id="preloader"></div>
+
+    <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/vendor/purecounter/purecounter_vanilla.js"></script>
+    <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+    <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+
+    <script src="assets/js/main.js"></script>
+
+</body>
+
+</html>
